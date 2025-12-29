@@ -182,6 +182,19 @@ export const getSubscription = async (
       return;
     }
 
+    // Admins don't need subscription
+    if (req.user.role === 'admin') {
+      res.json({
+        subscription: {
+          planType: 'unlimited',
+          isActive: true,
+          isAdmin: true,
+        },
+        hasSubscription: true,
+      });
+      return;
+    }
+
     const subscription = await Subscription.findOne({
       user: req.user.id,
       isActive: true,

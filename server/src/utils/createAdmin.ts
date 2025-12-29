@@ -9,10 +9,11 @@ export const createAdmin = async () => {
   try {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@propertybroker.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const adminPhone = process.env.ADMIN_PHONE || '+911234567890';
 
     const existingAdmin = await User.findOne({ email: adminEmail });
     if (existingAdmin) {
-      console.log('Admin user already exists');
+      console.log('✅ Admin user already exists:', adminEmail);
       return;
     }
 
@@ -21,15 +22,17 @@ export const createAdmin = async () => {
     const admin = await User.create({
       fullName: 'Admin User',
       email: adminEmail,
-      phoneNumber: '0000000000',
+      phoneNumber: adminPhone,
       password: hashedPassword,
       role: 'admin',
       isActive: true,
     });
 
-    console.log('Admin user created successfully:', admin.email);
+    console.log('✅ Admin user created successfully:', admin.email);
+    console.log('📧 Email:', adminEmail);
+    console.log('🔑 Password:', adminPassword);
   } catch (error) {
-    console.error('Error creating admin user:', error);
+    console.error('❌ Error creating admin user:', error);
   }
 };
 

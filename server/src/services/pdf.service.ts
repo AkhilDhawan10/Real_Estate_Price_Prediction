@@ -3,18 +3,27 @@ import fs from 'fs';
 import path from 'path';
 import Property from '../models/Property.model';
 import { savePropertiesToExcel } from '../utils/excel.util';
+import { parseDelhiPDF } from './delhi-pdf.parser';
+
+type FloorType = 'basement' | 'ground' | 'first' | 'second' | 'third' | 'terrace' | 'stilt';
+type PropertyStatus = 'ready' | 'under_construction' | 'booking';
 
 interface ExtractedProperty {
   location: {
     city: string;
     area: string;
   };
+  propertyId?: string;
   propertyType: 'plot' | 'flat';
   size: {
     value: number;
-    unit: 'gaj' | 'sqft';
+    unit: 'gaj' | 'sqft' | 'yd';
   };
-  price: number;
+  price?: number;
+  floors: FloorType[];
+  bedrooms?: number;
+  status?: PropertyStatus;
+  contact?: string;
   brokerNotes?: string;
 }
 
@@ -123,18 +132,14 @@ export const processPDFFile = async (
     // Extract text from PDF
     const text = await extractTextFromPDF(filePath);
 
-    // Parse property data
-    let extractedProperties = parsePropertyData(text);
-
-    // If parsing didn't work well, try table extraction
-    if (extractedProperties.length === 0) {
-      // Fallback: Try to extract structured data from tables
-      extractedProperties = extractFromTableFormat(text);
-    }
+    // Use Delhi PDF parser for unstructured real estate data
+    const extractedProperties = parseDelhiPDF(text);
 
     if (extractedProperties.length === 0) {
       throw new Error('No properties could be extracted from PDF');
     }
+
+    console.log(`Extracted ${extractedProperties.length} properties from PDF`);
 
     // Save to MongoDB
     let saved = 0;
@@ -160,7 +165,7 @@ export const processPDFFile = async (
       location: p.location,
       propertyType: p.propertyType,
       size: p.size,
-      price: p.price,
+      price: p.price || 0,
       brokerNotes: p.brokerNotes,
     }));
     savePropertiesToExcel(excelData);
@@ -170,45 +175,5 @@ export const processPDFFile = async (
     console.error('Error processing PDF:', error);
     throw error;
   }
-};
-
-/**
- * Extract properties from table-like format in PDF text
- */
-const extractFromTableFormat = (text: string): ExtractedProperty[] => {
-  const properties: ExtractedProperty[] = [];
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line);
-
-  // Look for table patterns
-  for (let i = 0; i < lines.length; i++) {
-    const parts = lines[i].split(/\s{2,}|\t/).filter(p => p.trim());
-    
-    if (parts.length >= 4) {
-      // Assume format: City | Area | Type | Size | Price
-      try {
-        const property: ExtractedProperty = {
-          location: {
-            city: parts[0] || 'unknown',
-            area: parts[1] || 'unknown',
-          },
-          propertyType: (parts[2]?.toLowerCase().includes('plot') ? 'plot' : 'flat') as 'plot' | 'flat',
-          size: {
-            value: parseFloat(parts[3]) || 0,
-            unit: parts[3]?.toLowerCase().includes('gaj') ? 'gaj' : 'sqft',
-          },
-          price: parseFloat(parts[4]?.replace(/[₹,]/g, '')) || 0,
-        };
-
-        if (property.price > 0 && property.size.value > 0) {
-          properties.push(property);
-        }
-      } catch (error) {
-        // Skip invalid rows
-        continue;
-      }
-    }
-  }
-
-  return properties;
 };
 

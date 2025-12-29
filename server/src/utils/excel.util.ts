@@ -69,7 +69,7 @@ export const savePropertiesToExcel = (properties: Array<{
   location: { city: string; area: string };
   propertyType: string;
   size: { value: number; unit: string };
-  price: number;
+  price?: number;
   brokerNotes?: string;
 }>): void => {
   try {
@@ -79,7 +79,7 @@ export const savePropertiesToExcel = (properties: Array<{
       'Property Type': prop.propertyType,
       'Size Value': prop.size.value,
       'Size Unit': prop.size.unit,
-      'Price': prop.price,
+      'Price': prop.price || 0,
       'Broker Notes': prop.brokerNotes || '',
     }));
 

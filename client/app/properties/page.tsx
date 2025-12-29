@@ -17,7 +17,10 @@ const searchSchema = z.object({
   propertyType: z.enum(['plot', 'flat']).optional(),
   sizeMin: z.string().optional(),
   sizeMax: z.string().optional(),
-  sizeUnit: z.enum(['gaj', 'sqft']).optional(),
+  sizeUnit: z.enum(['gaj', 'sqft', 'yd']).optional(),
+  bedrooms: z.string().optional(),
+  floors: z.string().optional(),
+  status: z.enum(['ready', 'under_construction', 'booking']).optional(),
   budgetMin: z.string().optional(),
   budgetMax: z.string().optional(),
 });
@@ -145,7 +148,60 @@ export default function PropertiesPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
                   >
                     <option value="sqft">Square Feet</option>
+                    <option value="yd">Yards</option>
                     <option value="gaj">Gaj</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bedrooms (BHK)
+                  </label>
+                  <select
+                    {...register('bedrooms')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
+                  >
+                    <option value="">Any</option>
+                    <option value="1">1 BHK</option>
+                    <option value="2">2 BHK</option>
+                    <option value="3">3 BHK</option>
+                    <option value="4">4 BHK</option>
+                    <option value="5">5 BHK</option>
+                    <option value="6">6+ BHK</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Floors (comma-separated)
+                  </label>
+                  <select
+                    {...register('floors')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
+                  >
+                    <option value="">Any Floor</option>
+                    <option value="basement">Basement</option>
+                    <option value="ground">Ground Floor</option>
+                    <option value="first">First Floor</option>
+                    <option value="second">Second Floor</option>
+                    <option value="third">Third Floor</option>
+                    <option value="terrace">Terrace</option>
+                    <option value="stilt">Stilt</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Property Status
+                  </label>
+                  <select
+                    {...register('status')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
+                  >
+                    <option value="">Any Status</option>
+                    <option value="ready">Ready to Move</option>
+                    <option value="under_construction">Under Construction</option>
+                    <option value="booking">Booking</option>
                   </select>
                 </div>
 
@@ -157,7 +213,7 @@ export default function PropertiesPage() {
                     {...register('sizeMin')}
                     type="number"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                    placeholder="1000"
+                    placeholder="100"
                   />
                 </div>
 
@@ -169,7 +225,7 @@ export default function PropertiesPage() {
                     {...register('sizeMax')}
                     type="number"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                    placeholder="2000"
+                    placeholder="500"
                   />
                 </div>
 
@@ -221,25 +277,61 @@ export default function PropertiesPage() {
                   className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition"
                 >
                   <div className="mb-4">
-                    <h3 className="text-xl font-semibold">
-                      {property.location.city}, {property.location.area}
+                    <h3 className="text-xl font-semibold capitalize">
+                      {property.location.area}
                     </h3>
-                    <p className="text-gray-600 capitalize">
-                      {property.propertyType}
+                    <p className="text-sm text-gray-500 capitalize">
+                      {property.location.city}
                     </p>
+                    {property.propertyId && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Property ID: {property.propertyId}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <p>
-                      <strong>Size:</strong> {property.size.value}{' '}
-                      {property.size.unit}
+                      <strong>Type:</strong>{' '}
+                      <span className="capitalize">{property.propertyType}</span>
                     </p>
                     <p>
-                      <strong>Price:</strong> ₹
-                      {property.price.toLocaleString('en-IN')}
+                      <strong>Size:</strong> {property.size.value}{' '}
+                      {property.size.unit.toUpperCase()}
                     </p>
+                    {property.bedrooms && (
+                      <p>
+                        <strong>Bedrooms:</strong> {property.bedrooms} BHK
+                      </p>
+                    )}
+                    {property.floors && property.floors.length > 0 && (
+                      <p>
+                        <strong>Floors:</strong>{' '}
+                        {property.floors.map((f: string) => f.charAt(0).toUpperCase() + f.slice(1)).join(', ')}
+                      </p>
+                    )}
+                    {property.status && (
+                      <p>
+                        <strong>Status:</strong>{' '}
+                        <span className="capitalize">
+                          {property.status.replace('_', ' ')}
+                        </span>
+                      </p>
+                    )}
+                    {property.price && (
+                      <p>
+                        <strong>Price:</strong> ₹
+                        {property.price.toLocaleString('en-IN')}
+                      </p>
+                    )}
+                    {property.contact && (
+                      <p className="text-sm">
+                        <strong>Contact:</strong> {property.contact}
+                      </p>
+                    )}
                     {property.brokerNotes && (
-                      <p className="text-sm text-gray-600">
-                        {property.brokerNotes}
+                      <p className="text-sm text-gray-600 mt-2 pt-2 border-t">
+                        {property.brokerNotes.substring(0, 150)}
+                        {property.brokerNotes.length > 150 && '...'}
                       </p>
                     )}
                   </div>

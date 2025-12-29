@@ -1,18 +1,25 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export type PropertyType = 'plot' | 'flat';
+export type FloorType = 'basement' | 'ground' | 'first' | 'second' | 'third' | 'terrace' | 'stilt';
+export type PropertyStatus = 'ready' | 'under_construction' | 'booking';
 
 export interface IProperty extends Document {
   location: {
     city: string;
     area: string;
   };
+  propertyId?: string;
   propertyType: PropertyType;
   size: {
     value: number;
-    unit: 'gaj' | 'sqft';
+    unit: 'gaj' | 'sqft' | 'yd';
   };
-  price: number;
+  price?: number;
+  floors: FloorType[];
+  bedrooms?: number;
+  status?: PropertyStatus;
+  contact?: string;
   brokerNotes?: string;
   sourcePdf?: string;
   uploadedAt: Date;
@@ -36,6 +43,10 @@ const PropertySchema = new Schema<IProperty>(
         lowercase: true,
       },
     },
+    propertyId: {
+      type: String,
+      trim: true,
+    },
     propertyType: {
       type: String,
       enum: ['plot', 'flat'],
@@ -48,13 +59,28 @@ const PropertySchema = new Schema<IProperty>(
       },
       unit: {
         type: String,
-        enum: ['gaj', 'sqft'],
+        enum: ['gaj', 'sqft', 'yd'],
         required: true,
       },
     },
     price: {
       type: Number,
-      required: true,
+    },
+    floors: {
+      type: [String],
+      enum: ['basement', 'ground', 'first', 'second', 'third', 'terrace', 'stilt'],
+      default: [],
+    },
+    bedrooms: {
+      type: Number,
+    },
+    status: {
+      type: String,
+      enum: ['ready', 'under_construction', 'booking'],
+    },
+    contact: {
+      type: String,
+      trim: true,
     },
     brokerNotes: {
       type: String,
@@ -78,6 +104,8 @@ PropertySchema.index({ 'location.city': 1, 'location.area': 1 });
 PropertySchema.index({ propertyType: 1 });
 PropertySchema.index({ price: 1 });
 PropertySchema.index({ 'size.value': 1 });
+PropertySchema.index({ floors: 1 });
+PropertySchema.index({ bedrooms: 1 });
 
 export default mongoose.model<IProperty>('Property', PropertySchema);
 

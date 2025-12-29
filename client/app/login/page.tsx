@@ -51,21 +51,25 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
     try {
+      console.log('Attempting login for:', data.email);
       const user = await login(data.email, data.password);
+      console.log('Login successful, user:', user);
       toast.success('Login successful!');
       
       // Use window.location for more reliable navigation
+      console.log('Redirecting user with role:', user.role);
       setTimeout(() => {
         if (user.role === 'admin') {
+          console.log('Redirecting to admin dashboard');
           window.location.href = '/admin/dashboard';
         } else {
-          // For regular users, check if they need subscription first
-          // The subscription page will handle redirecting to properties if they have one
+          console.log('Redirecting to subscription page');
           window.location.href = '/subscription';
         }
       }, 300);
     } catch (error: any) {
       console.error('Login error:', error);
+      console.error('Error details:', error.response?.data);
       toast.error(error.response?.data?.message || error.message || 'Login failed');
       setLoading(false);
     }

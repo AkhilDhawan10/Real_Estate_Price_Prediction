@@ -6,9 +6,11 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 /**
  * Convert size to sqft for comparison
  */
-const convertToSqft = (value: number, unit: 'gaj' | 'sqft'): number => {
+const convertToSqft = (value: number, unit: 'gaj' | 'sqft' | 'yd'): number => {
   if (unit === 'gaj') {
     return value * 9; // 1 gaj = 9 sqft (approximately)
+  } else if (unit === 'yd') {
+    return value * 9; // 1 yard ≈ 9 sqft (same as gaj in Indian real estate)
   }
   return value;
 };
@@ -33,6 +35,9 @@ export const searchProperties = async (
       sizeMin,
       sizeMax,
       sizeUnit,
+      bedrooms,
+      floors,
+      status,
       budgetMin,
       budgetMax,
       page = 1,
@@ -51,6 +56,17 @@ export const searchProperties = async (
     if (propertyType) {
       query.propertyType = propertyType;
     }
+    if (bedrooms) {
+      query.bedrooms = Number(bedrooms);
+    }
+    if (floors) {
+      // Support comma-separated floors: ?floors=ground,first
+      const floorArray = (floors as string).split(',');
+      query.floors = { $in: floorArray };
+    }
+    if (status) {
+      query.status = status;
+    }
     if (budgetMin || budgetMax) {
       query.price = {};
       if (budgetMin) query.price.$gte = Number(budgetMin);
@@ -67,7 +83,7 @@ export const searchProperties = async (
     // Filter by size if provided
     let filteredProperties = properties;
     if (sizeMin || sizeMax) {
-      const unit = (sizeUnit as 'gaj' | 'sqft') || 'sqft';
+      const unit = (sizeUnit as 'gaj' | 'sqft' | 'yd') || 'sqft';
       const minSqft = sizeMin ? convertToSqft(Number(sizeMin), unit) : 0;
       const maxSqft = sizeMax
         ? convertToSqft(Number(sizeMax), unit)
@@ -94,8 +110,8 @@ export const searchProperties = async (
         score += 15;
       }
 
-      // Price proximity (within 10-15% range)
-      if (budgetMin && budgetMax) {
+      // Price proximity (within 10-15% range) - only if price exists
+      if (budgetMin && budgetMax && prop.price) {
         const avgBudget = (Number(budgetMin) + Number(budgetMax)) / 2;
         const diff = Math.abs(prop.price - avgBudget) / avgBudget;
         if (diff <= 0.1) score += 15;

@@ -13,8 +13,22 @@ export const login = async (email: string, password: string) => {
   const response = await api.post('/auth/login', { email, password });
   const { token, refreshToken, user } = response.data;
   
-  Cookies.set('token', token, { expires: 7 });
-  Cookies.set('refreshToken', refreshToken, { expires: 30 });
+  // Set cookies with proper options for localhost
+  Cookies.set('token', token, { 
+    expires: 7,
+    sameSite: 'Lax',
+    secure: false // Allow http for localhost
+  });
+  Cookies.set('refreshToken', refreshToken, { 
+    expires: 30,
+    sameSite: 'Lax',
+    secure: false
+  });
+  
+  console.log('✅ Token stored in cookies:', {
+    token: token.substring(0, 20) + '...',
+    cookieSet: !!Cookies.get('token')
+  });
   
   return user;
 };
@@ -28,8 +42,17 @@ export const register = async (data: {
   const response = await api.post('/auth/register', data);
   const { token, refreshToken, user } = response.data;
   
-  Cookies.set('token', token, { expires: 7 });
-  Cookies.set('refreshToken', refreshToken, { expires: 30 });
+  // Set cookies with proper options for localhost
+  Cookies.set('token', token, { 
+    expires: 7,
+    sameSite: 'Lax',
+    secure: false
+  });
+  Cookies.set('refreshToken', refreshToken, { 
+    expires: 30,
+    sameSite: 'Lax',
+    secure: false
+  });
   
   return user;
 };

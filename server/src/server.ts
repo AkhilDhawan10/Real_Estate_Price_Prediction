@@ -5,15 +5,15 @@ import mongoose from 'mongoose';
 import path from 'path';
 import fs from 'fs';
 
+// Load environment variables - must be before any other imports that use env vars
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 // Import routes
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import propertyRoutes from './routes/property.routes';
 import adminRoutes from './routes/admin.routes';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 
@@ -55,11 +55,17 @@ mongoose
   .connect(MONGODB_URI)
   .then(async () => {
     console.log('✅ Connected to MongoDB');
-    
-    // Create admin user if it doesn't exist
-    const { createAdmin } = await import('./utils/createAdmin');
-    await createAdmin();
-    
+
+    try {
+      console.log('➡️ Importing createAdmin util...');
+      const { createAdmin } = await import('./utils/createAdmin');
+      console.log('✅ createAdmin util imported, ensuring admin user...');
+      await createAdmin();
+      console.log('✅ Admin check complete');
+    } catch (err) {
+      console.error('❌ Error during createAdmin initialization:', err);
+    }
+
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);

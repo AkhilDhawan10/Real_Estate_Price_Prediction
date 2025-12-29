@@ -15,6 +15,13 @@ api.interceptors.request.use((config) => {
   const token = Cookies.get('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('🔑 Sending request with token:', {
+      url: config.url,
+      hasToken: true,
+      tokenPreview: token.substring(0, 20) + '...'
+    });
+  } else {
+    console.warn('⚠️ No token found for request:', config.url);
   }
   return config;
 });
