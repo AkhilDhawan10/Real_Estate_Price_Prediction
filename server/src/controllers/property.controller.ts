@@ -17,6 +17,7 @@ const convertToSqft = (value: number, unit: 'gaj' | 'sqft' | 'yd'): number => {
 
 /**
  * Search properties based on requirements
+ * Most fields are optional - only location/area is recommended
  */
 export const searchProperties = async (
   req: AuthRequest,
@@ -44,34 +45,80 @@ export const searchProperties = async (
       limit = 20,
     } = req.query;
 
-    // Build query
+    console.log('🔍 Search request:', { city, area, propertyType, sizeMin, sizeMax, bedrooms, floors, status, budgetMin, budgetMax });
+
+    // Build query - ALL filters are optional
     const query: any = {};
 
+    // Location filters (case-insensitive partial match)
     if (city) {
       query['location.city'] = new RegExp(city as string, 'i');
     }
     if (area) {
       query['location.area'] = new RegExp(area as string, 'i');
     }
+
+    // Property type (optional)
     if (propertyType) {
       query.propertyType = propertyType;
     }
+
+    // Bedrooms - "at least X bedrooms" OR properties without bedroom info
     if (bedrooms) {
-      query.bedrooms = Number(bedrooms);
+      query.$or = [
+        { bedrooms: { $exists: false } },
+        { bedrooms: null },
+        { bedrooms: { $gte: Number(bedrooms) } },
+      ];
     }
+
+    // Floors - match any of the specified floors OR no floor info
     if (floors) {
-      // Support comma-separated floors: ?floors=ground,first
-      const floorArray = (floors as string).split(',');
-      query.floors = { $in: floorArray };
+      const floorList = (floors as string)
+        .split(',')
+        .map(f => f.trim().toLowerCase())
+        .filter(Boolean);
+
+      if (floorList.length > 0) {
+        query.$or = query.$or || [];
+        query.$or.push(
+          { floors: { $exists: false } },
+          { floors: { $size: 0 } },
+          { floors: { $in: floorList } }
+        );
+      }
     }
+
+    // Status (optional)
     if (status) {
-      query.status = status;
+      query.$or = query.$or || [];
+      query.$or.push(
+        { status: { $exists: false } },
+        { status: null },
+        { status: status }
+      );
     }
+
+    // Budget - include properties without price
     if (budgetMin || budgetMax) {
-      query.price = {};
-      if (budgetMin) query.price.$gte = Number(budgetMin);
-      if (budgetMax) query.price.$lte = Number(budgetMax);
+      const priceConditions: any[] = [
+        { price: { $exists: false } },
+        { price: null }
+      ];
+
+      const priceRange: any = {};
+      if (budgetMin) priceRange.$gte = Number(budgetMin);
+      if (budgetMax) priceRange.$lte = Number(budgetMax);
+      
+      if (Object.keys(priceRange).length > 0) {
+        priceConditions.push({ price: priceRange });
+      }
+
+      query.$or = query.$or || [];
+      query.$or.push(...priceConditions);
     }
+
+    console.log('📋 MongoDB query:', JSON.stringify(query, null, 2));
 
     // Execute query
     const properties = await Property.find(query)
@@ -80,7 +127,9 @@ export const searchProperties = async (
       .skip((Number(page) - 1) * Number(limit))
       .lean();
 
-    // Filter by size if provided
+    console.log(`✅ Found ${properties.length} properties from DB`);
+
+    // Filter by size if provided (flexible range)
     let filteredProperties = properties;
     if (sizeMin || sizeMax) {
       const unit = (sizeUnit as 'gaj' | 'sqft' | 'yd') || 'sqft';
@@ -90,9 +139,12 @@ export const searchProperties = async (
         : Infinity;
 
       filteredProperties = properties.filter((prop) => {
+        if (!prop.size || !prop.size.value) return true; // Include if no size
         const propSqft = convertToSqft(prop.size.value, prop.size.unit);
         return propSqft >= minSqft && propSqft <= maxSqft;
       });
+      
+      console.log(`📏 After size filter: ${filteredProperties.length} properties`);
     }
 
     // Calculate relevance scores and sort
@@ -100,10 +152,10 @@ export const searchProperties = async (
       let score = 100; // Base score
 
       // Exact matches get higher scores
-      if (city && prop.location.city.toLowerCase() === (city as string).toLowerCase()) {
+      if (city && prop.location?.city?.toLowerCase() === (city as string).toLowerCase()) {
         score += 20;
       }
-      if (area && prop.location.area.toLowerCase() === (area as string).toLowerCase()) {
+      if (area && prop.location?.area?.toLowerCase() === (area as string).toLowerCase()) {
         score += 20;
       }
       if (propertyType && prop.propertyType === propertyType) {
@@ -119,8 +171,8 @@ export const searchProperties = async (
       }
 
       // Size proximity
-      if (sizeMin && sizeMax) {
-        const unit = (sizeUnit as 'gaj' | 'sqft') || 'sqft';
+      if (sizeMin && sizeMax && prop.size?.value) {
+        const unit = (sizeUnit as 'gaj' | 'sqft' | 'yd') || 'sqft';
         const avgSize = (Number(sizeMin) + Number(sizeMax)) / 2;
         const avgSizeSqft = convertToSqft(avgSize, unit);
         const propSqft = convertToSqft(prop.size.value, prop.size.unit);

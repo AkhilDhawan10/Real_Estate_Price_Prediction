@@ -6,6 +6,7 @@ import {
   getDashboardStats,
   downloadUsersReport,
   downloadSubscriptionsReport,
+  deleteAllProperties,
   upload,
 } from '../controllers/admin.controller';
 import { authenticate, requireAdmin } from '../middlewares/auth.middleware';
@@ -17,6 +18,7 @@ router.use(authenticate);
 router.use(requireAdmin);
 
 router.post('/upload-pdf', upload.single('pdf'), uploadPDF);
+router.delete('/properties', deleteAllProperties);
 router.get('/users', getUsers);
 router.get('/subscriptions', getSubscriptions);
 router.get('/dashboard/stats', getDashboardStats);

@@ -99,158 +99,187 @@ export default function PropertiesPage() {
 
           {/* Search Form */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    City
-                  </label>
-                  <input
-                    {...register('city')}
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                    placeholder="Mumbai"
-                  />
-                </div>
+            {/* Search Guidance */}
+            <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+              <p className="text-sm text-blue-700">
+                💡 <strong>Quick Tip:</strong> Enter at least <strong>City/Area</strong> to search. All other fields are optional and help narrow down results.
+              </p>
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Area
-                  </label>
-                  <input
-                    {...register('area')}
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                    placeholder="Bandra"
-                  />
-                </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Primary Filters - Recommended */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  📍 Location <span className="ml-2 text-xs font-normal text-green-600 bg-green-100 px-2 py-1 rounded">Recommended</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      City
+                    </label>
+                    <input
+                      {...register('city')}
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., Delhi, Mumbai"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Property Type
-                  </label>
-                  <select
-                    {...register('propertyType')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                  >
-                    <option value="">Any</option>
-                    <option value="plot">Plot</option>
-                    <option value="flat">Flat</option>
-                  </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Area
+                    </label>
+                    <input
+                      {...register('area')}
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., Anand Lok, Bandra"
+                    />
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Size Unit
-                  </label>
-                  <select
-                    {...register('sizeUnit')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                  >
-                    <option value="sqft">Square Feet</option>
-                    <option value="yd">Yards</option>
-                    <option value="gaj">Gaj</option>
-                  </select>
+              {/* Secondary Filters - Optional */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  🏠 Property Details <span className="ml-2 text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded">Optional</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Property Type
+                    </label>
+                    <select
+                      {...register('propertyType')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">All Types</option>
+                      <option value="plot">Plot</option>
+                      <option value="flat">Flat</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Bedrooms (at least)
+                    </label>
+                    <select
+                      {...register('bedrooms')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">Any Bedrooms</option>
+                      <option value="1">1+ BHK</option>
+                      <option value="2">2+ BHK</option>
+                      <option value="3">3+ BHK</option>
+                      <option value="4">4+ BHK</option>
+                      <option value="5">5+ BHK</option>
+                      <option value="6">6+ BHK</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Floor Preference
+                    </label>
+                    <select
+                      {...register('floors')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">Any Floor</option>
+                      <option value="basement">Basement</option>
+                      <option value="ground">Ground Floor</option>
+                      <option value="first">First Floor</option>
+                      <option value="second">Second Floor</option>
+                      <option value="third">Third Floor</option>
+                      <option value="terrace">Terrace</option>
+                      <option value="stilt">Stilt</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Property Status
+                    </label>
+                    <select
+                      {...register('status')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">Any Status</option>
+                      <option value="ready">Ready to Move</option>
+                      <option value="under_construction">Under Construction</option>
+                      <option value="booking">Booking</option>
+                    </select>
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bedrooms (BHK)
-                  </label>
-                  <select
-                    {...register('bedrooms')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                  >
-                    <option value="">Any</option>
-                    <option value="1">1 BHK</option>
-                    <option value="2">2 BHK</option>
-                    <option value="3">3 BHK</option>
-                    <option value="4">4 BHK</option>
-                    <option value="5">5 BHK</option>
-                    <option value="6">6+ BHK</option>
-                  </select>
-                </div>
+              {/* Size & Budget Filters - Optional */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  📐 Size & Budget <span className="ml-2 text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded">Optional</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Size Unit
+                    </label>
+                    <select
+                      {...register('sizeUnit')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="sqft">Square Feet</option>
+                      <option value="yd">Yards</option>
+                      <option value="gaj">Gaj</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Floors (comma-separated)
-                  </label>
-                  <select
-                    {...register('floors')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                  >
-                    <option value="">Any Floor</option>
-                    <option value="basement">Basement</option>
-                    <option value="ground">Ground Floor</option>
-                    <option value="first">First Floor</option>
-                    <option value="second">Second Floor</option>
-                    <option value="third">Third Floor</option>
-                    <option value="terrace">Terrace</option>
-                    <option value="stilt">Stilt</option>
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Min Size
+                    </label>
+                    <input
+                      {...register('sizeMin')}
+                      type="number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., 100"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Property Status
-                  </label>
-                  <select
-                    {...register('status')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                  >
-                    <option value="">Any Status</option>
-                    <option value="ready">Ready to Move</option>
-                    <option value="under_construction">Under Construction</option>
-                    <option value="booking">Booking</option>
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Size
+                    </label>
+                    <input
+                      {...register('sizeMax')}
+                      type="number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., 500"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Min Size
-                  </label>
-                  <input
-                    {...register('sizeMin')}
-                    type="number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                    placeholder="100"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Min Budget (₹)
+                    </label>
+                    <input
+                      {...register('budgetMin')}
+                      type="number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., 5000000"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Max Size
-                  </label>
-                  <input
-                    {...register('sizeMax')}
-                    type="number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                    placeholder="500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Min Budget (₹)
-                  </label>
-                  <input
-                    {...register('budgetMin')}
-                    type="number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                    placeholder="5000000"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Max Budget (₹)
-                  </label>
-                  <input
-                    {...register('budgetMax')}
-                    type="number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500"
-                    placeholder="10000000"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Budget (₹)
+                    </label>
+                    <input
+                      {...register('budgetMax')}
+                      type="number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., 10000000"
+                    />
+                  </div>
                 </div>
               </div>
 

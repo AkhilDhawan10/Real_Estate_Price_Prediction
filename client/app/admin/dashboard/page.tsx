@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -79,6 +80,23 @@ export default function AdminDashboard() {
       toast.success('Report downloaded successfully');
     } catch (error) {
       toast.error('Error downloading report');
+    }
+  };
+
+  const handleDeleteAllProperties = async () => {
+    if (!confirm('⚠️ Are you sure you want to delete ALL properties? This cannot be undone!')) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await api.delete('/admin/properties');
+      toast.success(`Deleted ${response.data.deletedCount} properties`);
+      fetchDashboardData(); // Refresh stats
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error deleting properties');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -164,6 +182,20 @@ export default function AdminDashboard() {
               Upload monthly property data PDF. The system will extract and
               store property information automatically.
             </p>
+            
+            {/* Delete All Properties Button */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleDeleteAllProperties}
+                disabled={deleting || stats?.totalProperties === 0}
+                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? 'Deleting...' : `🗑️ Delete All Properties (${stats?.totalProperties || 0})`}
+              </button>
+              <p className="text-sm text-gray-500 mt-2">
+                This will permanently delete all properties from the database.
+              </p>
+            </div>
           </div>
 
           {/* Reports */}

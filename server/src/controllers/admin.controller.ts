@@ -254,6 +254,31 @@ export const downloadUsersReport = async (
 };
 
 /**
+ * Delete all properties from database
+ */
+export const deleteAllProperties = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const result = await Property.deleteMany({});
+    
+    console.log(`Deleted ${result.deletedCount} properties`);
+    
+    res.json({
+      message: 'All properties deleted successfully',
+      deletedCount: result.deletedCount,
+    });
+  } catch (error: any) {
+    console.error('Delete properties error:', error);
+    res.status(500).json({
+      message: 'Error deleting properties',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Download subscriptions Excel report
  */
 export const downloadSubscriptionsReport = async (

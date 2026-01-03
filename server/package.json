@@ -7,7 +7,9 @@
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "jest"
+    "test": "jest",
+    "import-pdf": "ts-node src/scripts/importLocalPdf.ts",
+    "reset-properties": "ts-node src/scripts/resetProperties.ts"
   },
   "keywords": ["property", "broker", "saas"],
   "author": "",
