@@ -6,6 +6,8 @@ import {
   getDashboardStats,
   downloadUsersReport,
   downloadSubscriptionsReport,
+  getSearchStatistics,
+  downloadSearchReport,
   deleteAllProperties,
   upload,
 } from '../controllers/admin.controller';
@@ -24,6 +26,9 @@ router.get('/subscriptions', getSubscriptions);
 router.get('/dashboard/stats', getDashboardStats);
 router.get('/reports/users', downloadUsersReport);
 router.get('/reports/subscriptions', downloadSubscriptionsReport);
+router.get('/search-statistics', getSearchStatistics);
+router.get('/reports/search-statistics', downloadSearchReport);
 
 export default router;
+
 

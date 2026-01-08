@@ -30,6 +30,7 @@ type SearchFormData = z.infer<typeof searchSchema>;
 export default function PropertiesPage() {
   const router = useRouter();
   const [properties, setProperties] = useState<any[]>([]);
+  const [nearbyProperties, setNearbyProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const {
@@ -49,8 +50,13 @@ export default function PropertiesPage() {
       });
 
       const response = await api.get(`/properties/search?${params.toString()}`);
-      setProperties(response.data.properties);
-      if (response.data.properties.length === 0) {
+      const main = response.data.properties || [];
+      const nearby = response.data.nearbyProperties || [];
+
+      setProperties(main);
+      setNearbyProperties(nearby);
+
+      if (main.length === 0 && nearby.length === 0) {
         // react-hot-toast does not expose `info` on newer versions — use a generic toast with an info icon
         toast('No properties found matching your criteria', { icon: 'ℹ️' });
       }
@@ -298,81 +304,153 @@ export default function PropertiesPage() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
             </div>
-          ) : properties.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {properties.map((property) => (
-                <div
-                  key={property._id}
-                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition"
-                >
-                  <div className="mb-4">
-                    <h3 className="text-xl font-semibold capitalize">
-                      {property.location.area}
-                    </h3>
-                    <p className="text-sm text-gray-500 capitalize">
-                      {property.location.city}
-                    </p>
-                    {property.propertyId && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        Property ID: {property.propertyId}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <p>
-                      <strong>Type:</strong>{' '}
-                      <span className="capitalize">{property.propertyType}</span>
-                    </p>
-                    <p>
-                      <strong>Size:</strong> {property.size.value}{' '}
-                      {property.size.unit.toUpperCase()}
-                    </p>
-                    {property.bedrooms && (
-                      <p>
-                        <strong>Bedrooms:</strong> {property.bedrooms} BHK
-                      </p>
-                    )}
-                    {property.floors && property.floors.length > 0 && (
-                      <p>
-                        <strong>Floors:</strong>{' '}
-                        {property.floors.map((f: string) => f.charAt(0).toUpperCase() + f.slice(1)).join(', ')}
-                      </p>
-                    )}
-                    {property.status && (
-                      <p>
-                        <strong>Status:</strong>{' '}
-                        <span className="capitalize">
-                          {property.status.replace('_', ' ')}
-                        </span>
-                      </p>
-                    )}
-                    {property.price && (
-                      <p>
-                        <strong>Price:</strong> ₹
-                        {property.price.toLocaleString('en-IN')}
-                      </p>
-                    )}
-                    {property.contact && (
-                      <p className="text-sm">
-                        <strong>Contact:</strong> {property.contact}
-                      </p>
-                    )}
-                    {property.brokerNotes && (
-                      <p className="text-sm text-gray-600 mt-2 pt-2 border-t">
-                        {property.brokerNotes.substring(0, 150)}
-                        {property.brokerNotes.length > 150 && '...'}
-                      </p>
-                    )}
+          ) : (
+            <>
+              {/* Primary Results */}
+              {properties.length > 0 && (
+                <div className="mb-10">
+                  <h2 className="text-2xl font-semibold mb-4">
+                    Matching Properties
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {properties.map((property) => (
+                      <div
+                        key={property._id}
+                        className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition"
+                      >
+                        <div className="mb-4">
+                          <h3 className="text-xl font-semibold capitalize">
+                            {property.location.area}
+                          </h3>
+                          <p className="text-sm text-gray-500 capitalize">
+                            {property.location.city}
+                          </p>
+                          {property.propertyId && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Property ID: {property.propertyId}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <p>
+                            <strong>Type:</strong>{' '}
+                            <span className="capitalize">{property.propertyType}</span>
+                          </p>
+                          <p>
+                            <strong>Size:</strong> {property.size.value}{' '}
+                            {property.size.unit.toUpperCase()}
+                          </p>
+                          {property.bedrooms && (
+                            <p>
+                              <strong>Bedrooms:</strong> {property.bedrooms} BHK
+                            </p>
+                          )}
+                          {property.floors && property.floors.length > 0 && (
+                            <p>
+                              <strong>Floors:</strong>{' '}
+                              {property.floors
+                                .map((f: string) => f.charAt(0).toUpperCase() + f.slice(1))
+                                .join(', ')}
+                            </p>
+                          )}
+                          {property.status && (
+                            <p>
+                              <strong>Status:</strong>{' '}
+                              <span className="capitalize">
+                                {property.status.replace('_', ' ')}
+                              </span>
+                            </p>
+                          )}
+                          {property.price && (
+                            <p>
+                              <strong>Price:</strong> ₹
+                              {property.price.toLocaleString('en-IN')}
+                            </p>
+                          )}
+                          {property.contact && (
+                            <p className="text-sm">
+                              <strong>Contact:</strong> {property.contact}
+                            </p>
+                          )}
+                          {property.brokerNotes && (
+                            <p className="text-sm text-gray-600 mt-2 pt-2 border-t">
+                              {property.brokerNotes.substring(0, 150)}
+                              {property.brokerNotes.length > 150 && '...'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-white rounded-lg shadow-md">
-              <p className="text-gray-600">
-                No properties found. Try adjusting your search criteria.
-              </p>
-            </div>
+              )}
+
+              {/* Nearby / Similar Properties */}
+              {nearbyProperties.length > 0 && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-2 flex items-center">
+                    Similar Nearby Properties
+                    <span className="ml-2 text-xs font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      Based on nearby locations & similar size/budget
+                    </span>
+                  </h2>
+                  <p className="text-sm text-gray-600 mb-4">
+                    These properties are from nearby areas in the same city and have similar size and budget to your search.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {nearbyProperties.map((property) => (
+                      <div
+                        key={property._id}
+                        className="bg-white rounded-lg shadow-sm border p-5 hover:shadow-md transition"
+                      >
+                        <div className="mb-3">
+                          <h3 className="text-lg font-semibold capitalize">
+                            {property.location.area}
+                          </h3>
+                          <p className="text-xs text-gray-500 capitalize">
+                            {property.location.city}
+                          </p>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <p>
+                            <strong>Type:</strong>{' '}
+                            <span className="capitalize">{property.propertyType}</span>
+                          </p>
+                          <p>
+                            <strong>Size:</strong> {property.size.value}{' '}
+                            {property.size.unit.toUpperCase()}
+                          </p>
+                          {property.bedrooms && (
+                            <p>
+                              <strong>Bedrooms:</strong> {property.bedrooms} BHK
+                            </p>
+                          )}
+                          {property.price && (
+                            <p>
+                              <strong>Price:</strong> ₹
+                              {property.price.toLocaleString('en-IN')}
+                            </p>
+                          )}
+                          {property.contact && (
+                            <p>
+                              <strong>Contact:</strong> {property.contact}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {properties.length === 0 && nearbyProperties.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-lg shadow-md">
+                  <p className="text-gray-600">
+                    No properties found. Try adjusting your search criteria.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

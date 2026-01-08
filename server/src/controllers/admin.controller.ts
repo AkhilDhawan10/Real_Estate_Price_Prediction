@@ -5,6 +5,7 @@ import fs from 'fs';
 import User from '../models/User.model';
 import Subscription from '../models/Subscription.model';
 import Property from '../models/Property.model';
+import SearchLog from '../models/SearchLog.model';
 import { processPDFFile } from '../services/pdf.service';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import * as XLSX from 'xlsx';
@@ -324,4 +325,177 @@ export const downloadSubscriptionsReport = async (
     });
   }
 };
+
+/**
+ * Get search statistics - most searched areas
+ */
+export const getSearchStatistics = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { days = 30 } = req.query;
+    
+    // Calculate date range
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - Number(days));
+
+    // Aggregate searches by area
+    const areaStats = await SearchLog.aggregate([
+      {
+        $match: {
+          searchedAt: { $gte: startDate },
+          'searchParams.area': { $exists: true, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: '$searchParams.area',
+          searchCount: { $sum: 1 },
+          uniqueUsers: { $addToSet: '$user' },
+          avgResultsCount: { $avg: '$resultsCount' },
+          lastSearchedAt: { $max: '$searchedAt' },
+        },
+      },
+      {
+        $project: {
+          area: '$_id',
+          searchCount: 1,
+          uniqueUsersCount: { $size: '$uniqueUsers' },
+          avgResultsCount: { $round: ['$avgResultsCount', 0] },
+          lastSearchedAt: 1,
+          _id: 0,
+        },
+      },
+      {
+        $sort: { searchCount: -1 },
+      },
+      {
+        $limit: 50,
+      },
+    ]);
+
+    // Get total searches in period
+    const totalSearches = await SearchLog.countDocuments({
+      searchedAt: { $gte: startDate },
+    });
+
+    res.json({
+      statistics: areaStats,
+      summary: {
+        totalSearches,
+        periodDays: Number(days),
+        topAreas: areaStats.slice(0, 10),
+      },
+    });
+  } catch (error: any) {
+    console.error('Get search statistics error:', error);
+    res.status(500).json({
+      message: 'Error fetching search statistics',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Download search statistics Excel report
+ */
+export const downloadSearchReport = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { days = 30 } = req.query;
+    
+    // Calculate date range
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - Number(days));
+
+    // Aggregate searches by area
+    const areaStats = await SearchLog.aggregate([
+      {
+        $match: {
+          searchedAt: { $gte: startDate },
+          'searchParams.area': { $exists: true, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: '$searchParams.area',
+          searchCount: { $sum: 1 },
+          uniqueUsers: { $addToSet: '$user' },
+          avgResultsCount: { $avg: '$resultsCount' },
+          lastSearchedAt: { $max: '$searchedAt' },
+        },
+      },
+      {
+        $project: {
+          area: '$_id',
+          searchCount: 1,
+          uniqueUsersCount: { $size: '$uniqueUsers' },
+          avgResultsCount: { $round: ['$avgResultsCount', 0] },
+          lastSearchedAt: 1,
+          _id: 0,
+        },
+      },
+      {
+        $sort: { searchCount: -1 },
+      },
+    ]);
+
+    // Format data for Excel
+    const data: any[] = areaStats.map((stat, index) => ({
+      'Rank': index + 1,
+      'Area/Locality': stat.area,
+      'Total Searches': stat.searchCount,
+      'Unique Users': stat.uniqueUsersCount,
+      'Avg Results Found': stat.avgResultsCount,
+      'Last Searched': new Date(stat.lastSearchedAt).toLocaleString(),
+    }));
+
+    // Add summary row
+    const totalSearches = areaStats.reduce((sum, stat) => sum + stat.searchCount, 0);
+    data.push({
+      'Rank': '',
+      'Area/Locality': 'TOTAL',
+      'Total Searches': totalSearches,
+      'Unique Users': '',
+      'Avg Results Found': '',
+      'Last Searched': '',
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Search Statistics');
+
+    // Add metadata sheet
+    const metadata = [
+      { Field: 'Report Generated', Value: new Date().toLocaleString() },
+      { Field: 'Period (Days)', Value: days },
+      { Field: 'Total Areas Searched', Value: areaStats.length },
+      { Field: 'Total Searches', Value: totalSearches },
+    ];
+    const metadataSheet = XLSX.utils.json_to_sheet(metadata);
+    XLSX.utils.book_append_sheet(workbook, metadataSheet, 'Report Info');
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=search-statistics-${Date.now()}.xlsx`
+    );
+    res.send(buffer);
+  } catch (error: any) {
+    console.error('Download search report error:', error);
+    res.status(500).json({
+      message: 'Error generating search report',
+      error: error.message,
+    });
+  }
+};
+
 

@@ -72,8 +72,7 @@ export default function Home() {
             <div className="text-primary-600 text-4xl mb-4">📊</div>
             <h3 className="text-xl font-semibold mb-2">Monthly Updates</h3>
             <p className="text-gray-600">
-              Fresh property data extracted from PDFs every month, ensuring you
-              have the latest information.
+              Fresh luxury properties which are available in Delhi. Data gets updated every month to give you fresh updates.
             </p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md">
