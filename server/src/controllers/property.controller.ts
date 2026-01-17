@@ -47,7 +47,8 @@ export const searchProperties = async (
     } = req.query;
 
     // Sanitize inputs to prevent NoSQL injection
-    const sanitizedArea = area ? String(area).replace(/[^a-zA-Z0-9\s-]/g, '') : undefined;
+    // Support multiple comma-separated areas (up to 3)
+    const sanitizedArea = area ? String(area).replace(/[^a-zA-Z0-9\s,-]/g, '') : undefined;
     const sanitizedBedrooms = bedrooms ? parseInt(String(bedrooms), 10) : undefined;
     const sanitizedFloors = floors ? String(floors).replace(/[^a-zA-Z0-9,\s-]/g, '') : undefined;
     const sanitizedPage = Math.max(1, parseInt(String(page), 10) || 1);
@@ -61,8 +62,24 @@ export const searchProperties = async (
     // Location filters (case-insensitive partial match)
     // Domain is fixed to South Delhi so we always constrain by CITY_DOMAIN
     query['location.city'] = new RegExp(CITY_DOMAIN, 'i');
+    
+    // Support multiple areas separated by commas (up to 3)
     if (sanitizedArea) {
-      query['location.area'] = new RegExp(sanitizedArea, 'i');
+      const areaList = sanitizedArea
+        .split(',')
+        .map(a => a.trim())
+        .filter(Boolean)
+        .slice(0, 3); // Limit to 3 areas
+      
+      if (areaList.length === 1) {
+        // Single area - use simple regex
+        query['location.area'] = new RegExp(areaList[0], 'i');
+      } else if (areaList.length > 1) {
+        // Multiple areas - use $or with regex for each
+        query.$or = areaList.map(area => ({
+          'location.area': new RegExp(area, 'i')
+        }));
+      }
     }
 
     // Bedrooms - "at least X bedrooms" OR properties without bedroom info
@@ -156,101 +173,6 @@ export const searchProperties = async (
 
     const mainProperties = scoredProperties.map(({ relevanceScore, ...prop }) => prop);
 
-    // Find nearby / similar properties (same city, nearby areas & similar size/price)
-    let nearbyProperties: any[] = [];
-
-    try {
-      // Only try to compute nearby properties if we have at least an area or city hint
-      if (city || area) {
-        const nearbyQuery: any = {};
-
-        // Always keep nearby suggestions within the South Delhi domain
-        nearbyQuery['location.city'] = new RegExp(CITY_DOMAIN, 'i');
-
-        // We intentionally do NOT filter by exact area here so that we can
-        // suggest properties from nearby areas within the same city.
-
-        // Fetch a broader set of candidates to rank in-memory
-        const nearbyCandidates = await Property.find(nearbyQuery)
-          .sort({ createdAt: -1 })
-          .limit(100)
-          .lean();
-
-        const mainIds = new Set(mainProperties.map((p: any) => String(p._id)));
-
-        const unit = (sizeUnit as 'gaj' | 'sqft' | 'yd') || 'sqft';
-        const desiredSizeSqft =
-          sizeMin && sizeMax
-            ? convertToSqft(
-                (Number(sizeMin) + Number(sizeMax)) / 2,
-                unit
-              )
-            : undefined;
-
-        const normalizedArea = (area as string | undefined)?.toLowerCase().trim();
-
-        const scoredNearby = nearbyCandidates
-          // Exclude properties that are already in main results
-          .filter((prop: any) => !mainIds.has(String(prop._id)))
-          .map((prop: any) => {
-            let similarityScore = 0;
-
-            // Base score for same city
-            similarityScore += 20;
-
-            // Area similarity (token overlap / substring match)
-            if (normalizedArea && prop.location?.area) {
-              const areaStr = String(prop.location.area).toLowerCase();
-
-              if (areaStr === normalizedArea) {
-                similarityScore += 30;
-              } else if (
-                areaStr.includes(normalizedArea) ||
-                normalizedArea.includes(areaStr)
-              ) {
-                similarityScore += 20;
-              } else {
-                const tokensA = new Set(normalizedArea.split(/\s+/));
-                const tokensB = new Set(areaStr.split(/\s+/));
-                const hasOverlap = [...tokensA].some((t) => tokensB.has(t));
-                if (hasOverlap) similarityScore += 10;
-              }
-            }
-
-            // Size similarity (if both sides have size)
-            if (desiredSizeSqft && prop.size?.value && prop.size.unit) {
-              const propSqft = convertToSqft(
-                Number(prop.size.value),
-                prop.size.unit as 'gaj' | 'sqft' | 'yd'
-              );
-              const diff = Math.abs(propSqft - desiredSizeSqft) / desiredSizeSqft;
-              if (diff <= 0.1) similarityScore += 20;
-              else if (diff <= 0.2) similarityScore += 10;
-            }
-
-            return { ...prop, similarityScore };
-          })
-          // Keep only reasonably relevant suggestions
-          .filter((prop: any) => prop.similarityScore >= 25);
-
-        scoredNearby.sort(
-          (a: any, b: any) => b.similarityScore - a.similarityScore
-        );
-
-        // Take top N nearby properties
-        nearbyProperties = scoredNearby
-          .slice(0, 10)
-          .map(({ similarityScore, ...prop }: any) => prop);
-
-        console.log(
-          `✨ Nearby similar properties suggestions: ${nearbyProperties.length}`
-        );
-      }
-    } catch (nearbyError) {
-      console.error('Error computing nearby/similar properties:', nearbyError);
-      // Do not fail the main search if nearby suggestions fail
-    }
-
     // Save requirement
     try {
       await PropertyRequirement.create({
@@ -299,7 +221,6 @@ export const searchProperties = async (
 
     res.json({
       properties: mainProperties,
-      nearbyProperties,
       pagination: {
         page: Number(page),
         limit: Number(limit),

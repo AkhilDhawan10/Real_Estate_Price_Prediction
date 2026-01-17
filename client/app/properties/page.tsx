@@ -129,14 +129,17 @@ export default function PropertiesPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Area
+                      Area <span className="text-xs text-blue-600">(up to 3 locations)</span>
                     </label>
                     <input
                       {...register('area')}
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="e.g., Anand Lok, Bandra"
+                      placeholder="e.g., Anand Lok, Vasant Vihar, Defence Colony"
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      💡 Separate multiple areas with commas to search up to 3 locations at once
+                    </p>
                   </div>
                 </div>
               </div>

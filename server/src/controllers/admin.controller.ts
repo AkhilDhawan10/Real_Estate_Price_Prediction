@@ -535,8 +535,24 @@ export const adminSearchProperties = async (
 
     // Location filters
     query['location.city'] = new RegExp(CITY_DOMAIN, 'i');
+    
+    // Support multiple areas separated by commas (up to 3)
     if (area) {
-      query['location.area'] = new RegExp(area as string, 'i');
+      const areaList = String(area)
+        .split(',')
+        .map(a => a.trim())
+        .filter(Boolean)
+        .slice(0, 3); // Limit to 3 areas
+      
+      if (areaList.length === 1) {
+        // Single area - use simple regex
+        query['location.area'] = new RegExp(areaList[0], 'i');
+      } else if (areaList.length > 1) {
+        // Multiple areas - use $or with regex for each
+        query.$or = areaList.map(a => ({
+          'location.area': new RegExp(a, 'i')
+        }));
+      }
     }
 
     // Bedrooms filter
