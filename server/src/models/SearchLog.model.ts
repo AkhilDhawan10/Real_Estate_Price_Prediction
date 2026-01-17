@@ -11,7 +11,6 @@ export interface ISearchLog extends Document {
     sizeUnit?: string;
     bedrooms?: number;
     floors?: string;
-    status?: string;
     budgetMin?: number;
     budgetMax?: number;
   };
@@ -38,7 +37,6 @@ const SearchLogSchema = new Schema<ISearchLog>(
       sizeUnit: { type: String },
       bedrooms: { type: Number },
       floors: { type: String },
-      status: { type: String },
       budgetMin: { type: Number },
       budgetMax: { type: Number },
     },

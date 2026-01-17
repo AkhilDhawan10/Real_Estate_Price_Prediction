@@ -5,7 +5,10 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
 
-console.log('🔑 JWT Utils loaded with secret:', JWT_SECRET?.substring(0, 20) + '...');
+// Only log in development
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔑 JWT Utils loaded');
+}
 
 export interface TokenPayload {
   id: string;

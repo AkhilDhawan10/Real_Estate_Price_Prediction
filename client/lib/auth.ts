@@ -1,3 +1,5 @@
+'use client'
+
 import Cookies from 'js-cookie';
 import api from './api';
 
@@ -10,26 +12,23 @@ export interface User {
 }
 
 export const login = async (email: string, password: string) => {
+  const { default: api } = await import('./api');
+
   const response = await api.post('/auth/login', { email, password });
   const { token, refreshToken, user } = response.data;
-  
-  // Set cookies with proper options for localhost
+
   Cookies.set('token', token, { 
     expires: 7,
     sameSite: 'Lax',
-    secure: false // Allow http for localhost
+    secure: false 
   });
+
   Cookies.set('refreshToken', refreshToken, { 
     expires: 30,
     sameSite: 'Lax',
     secure: false
   });
-  
-  console.log('✅ Token stored in cookies:', {
-    token: token.substring(0, 20) + '...',
-    cookieSet: !!Cookies.get('token')
-  });
-  
+
   return user;
 };
 
@@ -39,35 +38,40 @@ export const register = async (data: {
   email: string;
   password: string;
 }) => {
+  const { default: api } = await import('./api');
+
   const response = await api.post('/auth/register', data);
   const { token, refreshToken, user } = response.data;
-  
-  // Set cookies with proper options for localhost
+
   Cookies.set('token', token, { 
     expires: 7,
     sameSite: 'Lax',
     secure: false
   });
+
   Cookies.set('refreshToken', refreshToken, { 
     expires: 30,
     sameSite: 'Lax',
     secure: false
   });
-  
+
   return user;
 };
 
 export const logout = () => {
   Cookies.remove('token');
   Cookies.remove('refreshToken');
-  window.location.href = '/login';
+  if (typeof window !== 'undefined') {
+    window.location.href = '/login';
+  }
 };
 
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
+    const { default: api } = await import('./api');
     const response = await api.get('/auth/profile');
     return response.data.user;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -75,4 +79,3 @@ export const getCurrentUser = async (): Promise<User | null> => {
 export const isAuthenticated = (): boolean => {
   return !!Cookies.get('token');
 };
-

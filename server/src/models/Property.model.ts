@@ -1,8 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type PropertyType = 'plot' | 'flat';
 export type FloorType = 'basement' | 'ground' | 'first' | 'second' | 'third' | 'terrace' | 'stilt';
-export type PropertyStatus = 'ready' | 'under_construction' | 'booking';
 
 export interface IProperty extends Document {
   location: {
@@ -10,17 +8,14 @@ export interface IProperty extends Document {
     area: string;
   };
   propertyId?: string;
-  propertyType: PropertyType;
-  size: {
+  size?: {
     value: number;
     unit: 'gaj' | 'sqft' | 'yd';
   };
-  price?: number;
   floors: FloorType[];
   bedrooms?: number;
-  status?: PropertyStatus;
-  contact?: string;
-  brokerNotes?: string;
+  detail?: string;
+  rawDetail?: string;
   sourcePdf?: string;
   uploadedAt: Date;
   createdAt: Date;
@@ -47,24 +42,14 @@ const PropertySchema = new Schema<IProperty>(
       type: String,
       trim: true,
     },
-    propertyType: {
-      type: String,
-      enum: ['plot', 'flat'],
-      required: true,
-    },
     size: {
       value: {
         type: Number,
-        required: true,
       },
       unit: {
         type: String,
         enum: ['gaj', 'sqft', 'yd'],
-        required: true,
       },
-    },
-    price: {
-      type: Number,
     },
     floors: {
       type: [String],
@@ -74,15 +59,11 @@ const PropertySchema = new Schema<IProperty>(
     bedrooms: {
       type: Number,
     },
-    status: {
-      type: String,
-      enum: ['ready', 'under_construction', 'booking'],
-    },
-    contact: {
+    detail: {
       type: String,
       trim: true,
     },
-    brokerNotes: {
+    rawDetail: {
       type: String,
       trim: true,
     },
@@ -101,8 +82,6 @@ const PropertySchema = new Schema<IProperty>(
 
 // Indexes for efficient searching
 PropertySchema.index({ 'location.city': 1, 'location.area': 1 });
-PropertySchema.index({ propertyType: 1 });
-PropertySchema.index({ price: 1 });
 PropertySchema.index({ 'size.value': 1 });
 PropertySchema.index({ floors: 1 });
 PropertySchema.index({ bedrooms: 1 });

@@ -28,9 +28,12 @@ export const createAdmin = async () => {
       isActive: true,
     });
 
-    console.log('✅ Admin user created successfully:', admin.email);
-    console.log('📧 Email:', adminEmail);
-    console.log('🔑 Password:', adminPassword);
+    console.log('✅ Admin user created successfully');
+    // Don't log credentials in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📧 Email:', adminEmail);
+      console.log('🔑 Password:', adminPassword);
+    }
   } catch (error) {
     console.error('❌ Error creating admin user:', error);
   }

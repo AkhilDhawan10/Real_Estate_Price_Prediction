@@ -10,6 +10,16 @@ import { processPDFFile } from '../services/pdf.service';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import * as XLSX from 'xlsx';
 
+// City domain
+const CITY_DOMAIN = (process.env.CITY_DOMAIN || 'south delhi').toLowerCase();
+
+// Helper function to convert size to sqft
+const convertToSqft = (value: number, unit: 'gaj' | 'sqft' | 'yd'): number => {
+  if (unit === 'gaj') return value * 9;
+  else if (unit === 'yd') return value * 9;
+  return value;
+};
+
 // Configure multer for file uploads
 const uploadDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -498,4 +508,118 @@ export const downloadSearchReport = async (
   }
 };
 
+/**
+ * Admin property search - shows ALL details including phone numbers
+ */
+export const adminSearchProperties = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const {
+      city,
+      area,
+      sizeMin,
+      sizeMax,
+      sizeUnit,
+      bedrooms,
+      floors,
+      page = 1,
+      limit = 100,
+    } = req.query;
+
+    console.log('🔍 Admin search request:', { city, area, sizeMin, sizeMax, bedrooms, floors });
+
+    // Build query - ALL filters are optional
+    const query: any = {};
+
+    // Location filters
+    query['location.city'] = new RegExp(CITY_DOMAIN, 'i');
+    if (area) {
+      query['location.area'] = new RegExp(area as string, 'i');
+    }
+
+    // Bedrooms filter
+    if (bedrooms) {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { bedrooms: { $exists: false } },
+          { bedrooms: null },
+          { bedrooms: { $gte: Number(bedrooms) } }
+        ]
+      });
+    }
+
+    // Floors filter
+    if (floors) {
+      const floorList = (floors as string)
+        .split(',')
+        .map(f => f.trim().toLowerCase())
+        .filter(Boolean);
+
+      if (floorList.length > 0) {
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            { floors: { $exists: false } },
+            { floors: { $size: 0 } },
+            { floors: { $in: floorList } }
+          ]
+        });
+      }
+    }
+
+    console.log('📋 MongoDB query:', JSON.stringify(query, null, 2));
+
+    // Execute query
+    const properties = await Property.find(query)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit))
+      .lean();
+
+    console.log(`✅ Found ${properties.length} properties from DB`);
+
+    // Filter by size if provided
+    let filteredProperties = properties;
+    if (sizeMin || sizeMax) {
+      const unit = (sizeUnit as 'gaj' | 'sqft' | 'yd') || 'sqft';
+      const minSqft = sizeMin ? convertToSqft(Number(sizeMin), unit) : 0;
+      const maxSqft = sizeMax ? convertToSqft(Number(sizeMax), unit) : Infinity;
+
+      filteredProperties = properties.filter((prop) => {
+        if (!prop.size || !prop.size.value) return true;
+        const propSqft = convertToSqft(prop.size.value, prop.size.unit);
+        return propSqft >= minSqft && propSqft <= maxSqft;
+      });
+      
+      console.log(`📏 After size filter: ${filteredProperties.length} properties`);
+    }
+
+    // Return with rawDetail for admin (includes phone numbers)
+    const adminProperties = filteredProperties.map(prop => ({
+      ...prop,
+      detail: prop.rawDetail || prop.detail, // Show unfiltered details to admin
+    }));
+
+    const total = await Property.countDocuments(query);
+
+    res.json({
+      properties: adminProperties,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error: any) {
+    console.error('Admin property search error:', error);
+    res.status(500).json({
+      message: 'Error searching properties',
+      error: error.message,
+    });
+  }
+};
 

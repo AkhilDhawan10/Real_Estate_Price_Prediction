@@ -6,7 +6,6 @@ import { savePropertiesToExcel } from '../utils/excel.util';
 import { parseDelhiPDF } from './delhi-pdf.parser';
 
 type FloorType = 'basement' | 'ground' | 'first' | 'second' | 'third' | 'terrace' | 'stilt';
-type PropertyStatus = 'ready' | 'under_construction' | 'booking';
 
 interface ExtractedProperty {
   location: {
@@ -14,17 +13,12 @@ interface ExtractedProperty {
     area: string;
   };
   propertyId?: string;
-  propertyType: 'plot' | 'flat';
   size: {
     value: number;
     unit: 'gaj' | 'sqft' | 'yd';
   };
-  price?: number;
   floors: FloorType[];
   bedrooms?: number;
-  status?: PropertyStatus;
-  contact?: string;
-  brokerNotes?: string;
 }
 
 /**
@@ -42,86 +36,6 @@ export const extractTextFromPDF = async (filePath: string): Promise<string> => {
 };
 
 /**
- * Parse extracted text to structured property data
- * This is a basic parser - you may need to customize based on your PDF format
- */
-export const parsePropertyData = (text: string): ExtractedProperty[] => {
-  const properties: ExtractedProperty[] = [];
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line);
-
-  // This is a simplified parser - adjust based on your PDF structure
-  // Example format: "City: Mumbai, Area: Bandra, Type: flat, Size: 1200 sqft, Price: 5000000"
-  
-  let currentProperty: Partial<ExtractedProperty> = {};
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].toLowerCase();
-
-    // Extract city
-    const cityMatch = line.match(/(?:city|location)[:\s]+([^,]+)/i);
-    if (cityMatch) {
-      const existingArea = currentProperty.location?.area || '';
-      currentProperty.location = { 
-        city: cityMatch[1].trim(), 
-        area: existingArea
-      };
-    }
-
-    // Extract area
-    const areaMatch = line.match(/(?:area|locality)[:\s]+([^,]+)/i);
-    if (areaMatch) {
-      const existingCity = currentProperty.location?.city || '';
-      currentProperty.location = { 
-        city: existingCity, 
-        area: areaMatch[1].trim() 
-      };
-    }
-
-    // Extract property type
-    if (line.includes('plot')) {
-      currentProperty.propertyType = 'plot';
-    } else if (line.includes('flat') || line.includes('apartment')) {
-      currentProperty.propertyType = 'flat';
-    }
-
-    // Extract size
-    const sizeMatch = line.match(/(\d+(?:\.\d+)?)\s*(gaj|sqft|sq\.ft\.|square\s*feet)/i);
-    if (sizeMatch) {
-      const unit = sizeMatch[2].toLowerCase().includes('gaj') ? 'gaj' : 'sqft';
-      currentProperty.size = {
-        value: parseFloat(sizeMatch[1]),
-        unit,
-      };
-    }
-
-    // Extract price
-    const priceMatch = line.match(/(?:price|cost|amount)[:\s]*[₹]?\s*(\d+(?:,\d+)*(?:\.\d+)?)/i);
-    if (priceMatch) {
-      currentProperty.price = parseFloat(priceMatch[1].replace(/,/g, ''));
-    }
-
-    // Extract notes
-    if (line.includes('note') || line.includes('remark')) {
-      currentProperty.brokerNotes = line;
-    }
-
-    // If we have enough data, save the property
-    if (
-      currentProperty.location?.city &&
-      currentProperty.location?.area &&
-      currentProperty.propertyType &&
-      currentProperty.size?.value &&
-      currentProperty.price
-    ) {
-      properties.push(currentProperty as ExtractedProperty);
-      currentProperty = {};
-    }
-  }
-
-  return properties;
-};
-
-/**
  * Process PDF file and store properties
  */
 export const processPDFFile = async (
@@ -129,17 +43,21 @@ export const processPDFFile = async (
   sourcePdfName: string
 ): Promise<{ saved: number; errors: number }> => {
   try {
+    console.log(`\n📄 Processing PDF: ${sourcePdfName}`);
+    
     // Extract text from PDF
     const text = await extractTextFromPDF(filePath);
+    console.log(`✓ Extracted text from PDF (${text.length} characters)`);
 
     // Use Delhi PDF parser for unstructured real estate data
     const extractedProperties = parseDelhiPDF(text);
 
     if (extractedProperties.length === 0) {
+      console.log('❌ No properties could be extracted from PDF');
       throw new Error('No properties could be extracted from PDF');
     }
 
-    console.log(`Extracted ${extractedProperties.length} properties from PDF`);
+    console.log(`✓ Parsed ${extractedProperties.length} properties from PDF`);
 
     // Save to MongoDB
     let saved = 0;
@@ -147,32 +65,53 @@ export const processPDFFile = async (
 
     for (const prop of extractedProperties) {
       try {
+        // Validate that property has required fields
+        if (!prop.location?.area || !prop.location?.city) {
+          console.log(`⚠️  Skipping property without location`);
+          errors++;
+          continue;
+        }
+
         await Property.create({
           ...prop,
           sourcePdf: sourcePdfName,
           uploadedAt: new Date(),
         });
         saved++;
-      } catch (error) {
-        console.error('Error saving property:', error);
+      } catch (error: any) {
+        console.error(`❌ Error saving property:`, error.message);
         errors++;
       }
     }
 
-    // Update Excel file
-    const allProperties = await Property.find().lean();
-    const excelData = allProperties.map((p) => ({
-      location: p.location,
-      propertyType: p.propertyType,
-      size: p.size,
-      price: p.price || 0,
-      brokerNotes: p.brokerNotes,
-    }));
-    savePropertiesToExcel(excelData);
+    console.log(`\n✅ Saved ${saved} properties to database`);
+    if (errors > 0) {
+      console.log(`⚠️  ${errors} properties failed to save`);
+    }
 
+    // Update Excel file
+    try {
+      const allProperties = await Property.find().lean();
+      const excelData = allProperties.map((p) => ({
+        location: p.location,
+        size: p.size,
+        floors: p.floors,
+        bedrooms: p.bedrooms,
+        propertyId: p.propertyId,
+        detail: p.detail,
+        rawDetail: p.rawDetail,
+      }));
+      savePropertiesToExcel(excelData);
+      console.log(`✓ Updated Excel file with all properties`);
+    } catch (excelError: any) {
+      console.error(`⚠️  Excel update failed:`, excelError.message);
+      // Don't fail the whole operation if Excel fails
+    }
+
+    console.log(`\n✅ PDF processing complete!\n`);
     return { saved, errors };
-  } catch (error) {
-    console.error('Error processing PDF:', error);
+  } catch (error: any) {
+    console.error('❌ Error processing PDF:', error.message);
     throw error;
   }
 };

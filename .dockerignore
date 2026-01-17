@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+dist
+.env
+.git
+.gitignore
+*.md
+client
+client.zip
+uploads
+excel-data
+real_estate_price_prediction.ipynb
+Data.csv
+properties.pdf
+test-*.sh
+start.sh

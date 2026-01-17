@@ -9,6 +9,7 @@ import {
   getSearchStatistics,
   downloadSearchReport,
   deleteAllProperties,
+  adminSearchProperties,
   upload,
 } from '../controllers/admin.controller';
 import { authenticate, requireAdmin } from '../middlewares/auth.middleware';
@@ -21,6 +22,7 @@ router.use(requireAdmin);
 
 router.post('/upload-pdf', upload.single('pdf'), uploadPDF);
 router.delete('/properties', deleteAllProperties);
+router.get('/properties/search', adminSearchProperties);
 router.get('/users', getUsers);
 router.get('/subscriptions', getSubscriptions);
 router.get('/dashboard/stats', getDashboardStats);

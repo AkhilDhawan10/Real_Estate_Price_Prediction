@@ -37,20 +37,23 @@ export const searchProperties = async (
     const {
       city,
       area,
-      propertyType,
       sizeMin,
       sizeMax,
       sizeUnit,
       bedrooms,
       floors,
-      status,
-      budgetMin,
-      budgetMax,
       page = 1,
-      limit = 20,
+      limit = 100,
     } = req.query;
 
-    console.log('🔍 Search request:', { city, area, propertyType, sizeMin, sizeMax, bedrooms, floors, status, budgetMin, budgetMax });
+    // Sanitize inputs to prevent NoSQL injection
+    const sanitizedArea = area ? String(area).replace(/[^a-zA-Z0-9\s-]/g, '') : undefined;
+    const sanitizedBedrooms = bedrooms ? parseInt(String(bedrooms), 10) : undefined;
+    const sanitizedFloors = floors ? String(floors).replace(/[^a-zA-Z0-9,\s-]/g, '') : undefined;
+    const sanitizedPage = Math.max(1, parseInt(String(page), 10) || 1);
+    const sanitizedLimit = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 100));
+
+    console.log('🔍 Search request:', { city, area: sanitizedArea, bedrooms: sanitizedBedrooms, floors: sanitizedFloors });
 
     // Build query - ALL filters are optional
     const query: any = {};
@@ -58,68 +61,39 @@ export const searchProperties = async (
     // Location filters (case-insensitive partial match)
     // Domain is fixed to South Delhi so we always constrain by CITY_DOMAIN
     query['location.city'] = new RegExp(CITY_DOMAIN, 'i');
-    if (area) {
-      query['location.area'] = new RegExp(area as string, 'i');
-    }
-
-    // Property type (optional)
-    if (propertyType) {
-      query.propertyType = propertyType;
+    if (sanitizedArea) {
+      query['location.area'] = new RegExp(sanitizedArea, 'i');
     }
 
     // Bedrooms - "at least X bedrooms" OR properties without bedroom info
-    if (bedrooms) {
-      query.$or = [
-        { bedrooms: { $exists: false } },
-        { bedrooms: null },
-        { bedrooms: { $gte: Number(bedrooms) } },
-      ];
+    if (sanitizedBedrooms && !isNaN(sanitizedBedrooms)) {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { bedrooms: { $exists: false } },
+          { bedrooms: null },
+          { bedrooms: { $gte: sanitizedBedrooms } }
+        ]
+      });
     }
 
     // Floors - match any of the specified floors OR no floor info
-    if (floors) {
-      const floorList = (floors as string)
+    if (sanitizedFloors) {
+      const floorList = sanitizedFloors
         .split(',')
         .map(f => f.trim().toLowerCase())
         .filter(Boolean);
 
       if (floorList.length > 0) {
-        query.$or = query.$or || [];
-        query.$or.push(
-          { floors: { $exists: false } },
-          { floors: { $size: 0 } },
-          { floors: { $in: floorList } }
-        );
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            { floors: { $exists: false } },
+            { floors: { $size: 0 } },
+            { floors: { $in: floorList } }
+          ]
+        });
       }
-    }
-
-    // Status (optional)
-    if (status) {
-      query.$or = query.$or || [];
-      query.$or.push(
-        { status: { $exists: false } },
-        { status: null },
-        { status: status }
-      );
-    }
-
-    // Budget - include properties without price
-    if (budgetMin || budgetMax) {
-      const priceConditions: any[] = [
-        { price: { $exists: false } },
-        { price: null }
-      ];
-
-      const priceRange: any = {};
-      if (budgetMin) priceRange.$gte = Number(budgetMin);
-      if (budgetMax) priceRange.$lte = Number(budgetMax);
-      
-      if (Object.keys(priceRange).length > 0) {
-        priceConditions.push({ price: priceRange });
-      }
-
-      query.$or = query.$or || [];
-      query.$or.push(...priceConditions);
     }
 
     console.log('📋 MongoDB query:', JSON.stringify(query, null, 2));
@@ -127,8 +101,8 @@ export const searchProperties = async (
     // Execute query
     const properties = await Property.find(query)
       .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .skip((Number(page) - 1) * Number(limit))
+      .limit(sanitizedLimit)
+      .skip((sanitizedPage - 1) * sanitizedLimit)
       .lean();
 
     console.log(`✅ Found ${properties.length} properties from DB`);
@@ -161,17 +135,6 @@ export const searchProperties = async (
       }
       if (area && prop.location?.area?.toLowerCase() === (area as string).toLowerCase()) {
         score += 20;
-      }
-      if (propertyType && prop.propertyType === propertyType) {
-        score += 15;
-      }
-
-      // Price proximity (within 10-15% range) - only if price exists
-      if (budgetMin && budgetMax && prop.price) {
-        const avgBudget = (Number(budgetMin) + Number(budgetMax)) / 2;
-        const diff = Math.abs(prop.price - avgBudget) / avgBudget;
-        if (diff <= 0.1) score += 15;
-        else if (diff <= 0.15) score += 10;
       }
 
       // Size proximity
@@ -207,10 +170,6 @@ export const searchProperties = async (
         // We intentionally do NOT filter by exact area here so that we can
         // suggest properties from nearby areas within the same city.
 
-        if (propertyType) {
-          nearbyQuery.propertyType = propertyType;
-        }
-
         // Fetch a broader set of candidates to rank in-memory
         const nearbyCandidates = await Property.find(nearbyQuery)
           .sort({ createdAt: -1 })
@@ -226,11 +185,6 @@ export const searchProperties = async (
                 (Number(sizeMin) + Number(sizeMax)) / 2,
                 unit
               )
-            : undefined;
-
-        const desiredBudget =
-          budgetMin && budgetMax
-            ? (Number(budgetMin) + Number(budgetMax)) / 2
             : undefined;
 
         const normalizedArea = (area as string | undefined)?.toLowerCase().trim();
@@ -274,13 +228,6 @@ export const searchProperties = async (
               else if (diff <= 0.2) similarityScore += 10;
             }
 
-            // Budget similarity (if budget + price available)
-            if (desiredBudget && prop.price) {
-              const diff = Math.abs(prop.price - desiredBudget) / desiredBudget;
-              if (diff <= 0.1) similarityScore += 15;
-              else if (diff <= 0.2) similarityScore += 8;
-            }
-
             return { ...prop, similarityScore };
           })
           // Keep only reasonably relevant suggestions
@@ -315,18 +262,13 @@ export const searchProperties = async (
                 area: (area as string | undefined) || (city as string | undefined) || '',
               }
             : undefined,
-        propertyType: propertyType as 'plot' | 'flat' | undefined,
         size: sizeMin || sizeMax
           ? {
               min: sizeMin ? Number(sizeMin) : undefined,
               max: sizeMax ? Number(sizeMax) : undefined,
-              unit: (sizeUnit as 'gaj' | 'sqft') || 'sqft',
+              unit: (sizeUnit as 'gaj' | 'sqft' | 'yd') || 'sqft',
             }
           : undefined,
-        budget: {
-          min: budgetMin ? Number(budgetMin) : 0,
-          max: budgetMax ? Number(budgetMax) : Infinity,
-        },
       });
     } catch (error) {
       console.error('Error saving requirement:', error);
@@ -342,15 +284,11 @@ export const searchProperties = async (
         searchParams: {
           city: city as string | undefined,
           area: area as string | undefined,
-          propertyType: propertyType as string | undefined,
           sizeMin: sizeMin ? Number(sizeMin) : undefined,
           sizeMax: sizeMax ? Number(sizeMax) : undefined,
           sizeUnit: sizeUnit as string | undefined,
           bedrooms: bedrooms ? Number(bedrooms) : undefined,
           floors: floors as string | undefined,
-          status: status as string | undefined,
-          budgetMin: budgetMin ? Number(budgetMin) : undefined,
-          budgetMax: budgetMax ? Number(budgetMax) : undefined,
         },
         resultsCount: mainProperties.length,
       });
@@ -413,22 +351,13 @@ export const getPropertyStats = async (
 ): Promise<void> => {
   try {
     const totalProperties = await Property.countDocuments();
-    const plots = await Property.countDocuments({ propertyType: 'plot' });
-    const flats = await Property.countDocuments({ propertyType: 'flat' });
-
     const cities = await Property.distinct('location.city');
-    const avgPrice = await Property.aggregate([
-      { $group: { _id: null, avgPrice: { $avg: '$price' } } },
-    ]);
+    const areas = await Property.distinct('location.area');
 
     res.json({
       totalProperties,
-      byType: {
-        plots,
-        flats,
-      },
       cities: cities.length,
-      averagePrice: avgPrice[0]?.avgPrice || 0,
+      areas: areas.length,
     });
   } catch (error: any) {
     console.error('Get stats error:', error);

@@ -67,20 +67,24 @@ export const appendUserToExcel = async (userData: {
  */
 export const savePropertiesToExcel = (properties: Array<{
   location: { city: string; area: string };
-  propertyType: string;
-  size: { value: number; unit: string };
-  price?: number;
-  brokerNotes?: string;
+  size?: { value: number; unit: string };
+  floors: string[];
+  bedrooms?: number;
+  propertyId?: string;
+  detail?: string;
+  rawDetail?: string;
 }>): void => {
   try {
     const data = properties.map((prop) => ({
       'City': prop.location.city,
       'Area': prop.location.area,
-      'Property Type': prop.propertyType,
-      'Size Value': prop.size.value,
-      'Size Unit': prop.size.unit,
-      'Price': prop.price || 0,
-      'Broker Notes': prop.brokerNotes || '',
+      'Property ID': prop.propertyId || '',
+      'Size Value': prop.size?.value || '',
+      'Size Unit': prop.size?.unit || '',
+      'Bedrooms': prop.bedrooms || '',
+      'Floors': prop.floors.join(', '),
+      'Details (Filtered)': prop.detail || '',
+      'Full Details (Admin)': prop.rawDetail || '',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -98,10 +102,10 @@ export const savePropertiesToExcel = (properties: Array<{
  */
 export const readPropertiesFromExcel = (): Array<{
   location: { city: string; area: string };
-  propertyType: string;
   size: { value: number; unit: string };
-  price: number;
-  brokerNotes?: string;
+  floors: string[];
+  bedrooms?: number;
+  propertyId?: string;
 }> => {
   try {
     if (!fs.existsSync(PROPERTIES_FILE)) {
@@ -117,13 +121,13 @@ export const readPropertiesFromExcel = (): Array<{
         city: row['City'] || '',
         area: row['Area'] || '',
       },
-      propertyType: row['Property Type'] || '',
+      propertyId: row['Property ID'] || undefined,
       size: {
         value: row['Size Value'] || 0,
         unit: row['Size Unit'] || 'sqft',
       },
-      price: row['Price'] || 0,
-      brokerNotes: row['Broker Notes'] || '',
+      bedrooms: row['Bedrooms'] || undefined,
+      floors: row['Floors'] ? row['Floors'].split(', ') : [],
     }));
   } catch (error) {
     console.error('Error reading properties from Excel:', error);

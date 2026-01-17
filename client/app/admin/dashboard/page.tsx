@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import api from '@/lib/api';
 import { logout } from '@/lib/auth';
@@ -131,12 +132,26 @@ export default function AdminDashboard() {
               <h1 className="text-2xl font-bold text-primary-600">
                 Admin Dashboard
               </h1>
-              <button
-                onClick={logout}
-                className="text-gray-700 hover:text-primary-600"
-              >
-                Logout
-              </button>
+              <div className="flex items-center space-x-4">
+                <Link
+                  href="/admin/dashboard"
+                  className="text-primary-600 font-semibold"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/admin/properties"
+                  className="text-gray-700 hover:text-primary-600"
+                >
+                  Properties
+                </Link>
+                <button
+                  onClick={logout}
+                  className="text-gray-700 hover:text-primary-600"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </nav>

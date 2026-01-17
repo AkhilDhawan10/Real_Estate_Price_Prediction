@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { login, isAuthenticated, getCurrentUser } from '@/lib/auth';
-import toast from 'react-hot-toast';
+// import { toast } from "react-hot-toast";
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -50,6 +50,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
+    const { toast } = await import("react-hot-toast");
     try {
       console.log('Attempting login for:', data.email);
       const user = await login(data.email, data.password);
